@@ -465,9 +465,29 @@ test_cpuset_num_threads() {
   assert_git_not_dirty
 }
 
+# Shared H100/B200 list prevents drift. All suites, including host-only ones, require
+# install_flash_attn_cute through @skipIfNoCuteDSL. Both sm_90+ architectures matter:
+# H100 reproduced all 112 B200-generated hashes across 163 tests.
+PYTHON_NATIVE_CUTEDSL_SUITES=(
+  python_native/test_cutedsl_smoketest
+  python_native/test_sum_cutedsl
+  python_native/test_sum_inner_tree_plan
+  python_native/test_inner_tree_order
+  python_native/test_kernel_coltile
+  python_native/test_kernel_xcta
+  python_native/test_kernel_rowtile
+  python_native/test_kernel_general
+  python_native/test_hw_caps
+  python_native/test_traits
+  python_native/test_instrumentation
+  python_native/test_tile_datapath
+)
+
 test_python_smoke() {
   # Smoke tests for H100/B200
   install_nvmath
+  install_flash_attn_cute
+  time python test/run_test.py --include "${PYTHON_NATIVE_CUTEDSL_SUITES[@]}" $PYTHON_TEST_EXTRA_OPTION --upload-artifacts-while-running
   time python test/run_test.py --include inductor/test_flex_attention -k test_tma_with_customer_kernel_options $PYTHON_TEST_EXTRA_OPTION --upload-artifacts-while-running
   time python test/run_test.py --include test_cuda -k test_graph_capture_cublas_workspace $PYTHON_TEST_EXTRA_OPTION --upload-artifacts-while-running
   time python test/run_test.py --include test_matmul_cuda test_scaled_matmul_cuda inductor/test_fp8 inductor/test_max_autotune inductor/test_cutedsl_grouped_mm $PYTHON_TEST_EXTRA_OPTION --upload-artifacts-while-running
@@ -484,8 +504,6 @@ test_python_smoke_b200() {
   # TODO(#189590): Re-enable CUTLASS API after NVGEMM migrates to
   # cutlass.operators. The preview package pins apache-tvm-ffi==0.1.7, which
   # is incompatible with CuTeDSL 4.6.2 used by the rest of this job.
-  # These host-only suites still require CuteDSL to import. This is the only CI job that
-  # installs it, so omitting them here disables them in CI.
   time python test/run_test.py \
     --include \
       test_matmul_cuda \
@@ -493,10 +511,7 @@ test_python_smoke_b200() {
       inductor/test_fp8 \
       nn/attention/test_fa4 \
       nn/attention/test_open_registry \
-      python_native/test_cutedsl_smoketest \
-      python_native/test_hw_caps \
-      python_native/test_traits \
-      python_native/test_instrumentation \
+      "${PYTHON_NATIVE_CUTEDSL_SUITES[@]}" \
       inductor/test_torchinductor \
       inductor/test_async_compile \
       inductor/test_nv_universal_gemm \
